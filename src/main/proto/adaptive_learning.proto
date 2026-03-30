@@ -1,0 +1,63 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "smartlearning.adaptive";
+option java_outer_classname = "AdaptiveLearningProto";
+
+package adaptive;
+
+// Difficulty levels
+enum DifficultyLevel {
+  FOUNDATION = 0;
+  INTERMEDIATE = 1;
+  ADVANCED = 2;
+}
+
+// Risk levels
+enum RiskLevel {
+  LOW = 0;
+  MEDIUM = 1;
+  HIGH = 2;
+}
+
+// Adaptive learning service
+service AdaptiveLearningService {
+
+  rpc GetRecommendations(RecommendationRequest) returns (RecommendationResponse);
+
+  // Bidirectional streaming
+  rpc TutorSession(stream TutorMessage) returns (stream TutorMessage);
+}
+
+// Request for recommendations
+message RecommendationRequest {
+  string studentId = 1;
+  double attendanceRate = 2;
+  double averageScore = 3;
+  string topic = 4;
+}
+
+// Learning material
+message LearningMaterial {
+  string title = 1;
+  string type = 2;
+  string difficulty = 3;
+  string link = 4;
+}
+
+// Recommendation response
+message RecommendationResponse {
+  string studentId = 1;
+  RiskLevel riskLevel = 2;
+  DifficultyLevel difficultyLevel = 3;
+  repeated LearningMaterial materials = 4;
+  string message = 5;
+}
+
+// Tutor message
+message TutorMessage {
+  string sessionId = 1;
+  string studentId = 2;
+  string text = 3;
+  int64 timestamp = 4;
+}

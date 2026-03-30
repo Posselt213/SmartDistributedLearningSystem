@@ -1,0 +1,58 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "smartlearning.notification";
+option java_outer_classname = "NotificationServiceProto";
+
+package notification;
+
+// Priority levels
+enum Priority {
+  LOW = 0;
+  MEDIUM = 1;
+  HIGH = 2;
+}
+
+// Notification service
+service NotificationService {
+
+  rpc SendAlert(AlertRequest) returns (AlertResponse);
+
+  rpc GetNotifications(UserRequest) returns (NotificationList);
+
+  // Server streaming
+  rpc StreamNotifications(UserRequest) returns (stream Notification);
+}
+
+// Alert request
+message AlertRequest {
+  string recipientId = 1;
+  string message = 2;
+  Priority priority = 3;
+}
+
+// Alert response
+message AlertResponse {
+  bool delivered = 1;
+  string notificationId = 2;
+  string message = 3;
+}
+
+// User request
+message UserRequest {
+  string userId = 1;
+}
+
+// Notification message
+message Notification {
+  string notificationId = 1;
+  string recipientId = 2;
+  string message = 3;
+  Priority priority = 4;
+  int64 timestamp = 5;
+}
+
+// Notification list
+message NotificationList {
+  repeated Notification notifications = 1;
+}

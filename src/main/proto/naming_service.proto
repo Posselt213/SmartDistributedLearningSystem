@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "smartlearning.naming";
+option java_outer_classname = "NamingServiceProto";
+
+package naming;
+
+// Naming service for registration and discovery
+service NamingService {
+
+  // Register a service
+  rpc Register(ServiceInfo) returns (RegisterResponse);
+
+  // List all services
+  rpc ListServices(Empty) returns (ServiceList);
+
+  // Find a specific service by name
+  rpc FindService(ServiceQuery) returns (ServiceInfo);
+}
+
+// Empty message
+message Empty {}
+
+// Information about a service
+message ServiceInfo {
+  string name = 1;
+  string host = 2;
+  int32 port = 3;
+  repeated string capabilities = 4;
+}
+
+// Query to find service
+message ServiceQuery {
+  string name = 1;
+}
+
+// Registration response
+message RegisterResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// List of services
+message ServiceList {
+  repeated ServiceInfo services = 1;
+}

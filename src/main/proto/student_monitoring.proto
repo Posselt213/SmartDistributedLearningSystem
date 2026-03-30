@@ -1,0 +1,86 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "smartlearning.monitoring";
+option java_outer_classname = "StudentMonitoringProto";
+
+package monitoring;
+
+// Service for tracking student performance
+service StudentMonitoringService {
+
+  rpc RecordAttendance(AttendanceRequest) returns (AttendanceResponse);
+
+  rpc SubmitScore(ScoreRequest) returns (ScoreResponse);
+
+  rpc GetStudentProgress(StudentRequest) returns (ProgressResponse);
+
+  // Client streaming
+  rpc UploadScores(stream ScoreEvent) returns (UploadSummary);
+}
+
+// Risk levels
+enum RiskLevel {
+  LOW = 0;
+  MEDIUM = 1;
+  HIGH = 2;
+}
+
+// Attendance request
+message AttendanceRequest {
+  string studentId = 1;
+  string date = 2;
+  bool present = 3;
+}
+
+// Attendance response
+message AttendanceResponse {
+  bool success = 1;
+  double attendanceRate = 2;
+  string message = 3;
+}
+
+// Score request
+message ScoreRequest {
+  string studentId = 1;
+  string assessmentId = 2;
+  double score = 3;
+  double maxScore = 4;
+}
+
+// Score response
+message ScoreResponse {
+  bool success = 1;
+  double newAverage = 2;
+  string message = 3;
+}
+
+// Student request
+message StudentRequest {
+  string studentId = 1;
+}
+
+// Progress response
+message ProgressResponse {
+  string studentId = 1;
+  double attendanceRate = 2;
+  double averageScore = 3;
+  RiskLevel riskLevel = 4;
+  string message = 5;
+}
+
+// Streaming score event
+message ScoreEvent {
+  string studentId = 1;
+  string assessmentId = 2;
+  double score = 3;
+  double maxScore = 4;
+}
+
+// Upload summary
+message UploadSummary {
+  int32 receivedCount = 1;
+  int32 acceptedCount = 2;
+  int32 rejectedCount = 3;
+  string message = 4;
+}
