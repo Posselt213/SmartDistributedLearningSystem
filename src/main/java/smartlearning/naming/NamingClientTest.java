@@ -20,7 +20,7 @@ public class NamingClientTest {
                 .build();
 
         NamingServiceGrpc.NamingServiceBlockingStub stub =
-                NamingServiceGrpc.newBlockingStub(channel);
+                NamingServiceGrpc.newBlockingStub(channel);     //Create client Stub 
 
         try {
 
