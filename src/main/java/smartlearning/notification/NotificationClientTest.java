@@ -100,7 +100,7 @@ public class NotificationClientTest {
             // 4. SERVER STREAMING TEST
             // =====================================================
 
-            // This latch is used to wait until the stream finishes
+            // This latch is used to wait until the stream finishes 
             CountDownLatch latch = new CountDownLatch(1);
 
             System.out.println("\nStreaming Notifications:");
