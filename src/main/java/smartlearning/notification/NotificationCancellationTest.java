@@ -141,7 +141,7 @@ public class NotificationCancellationTest {
 
         } finally {
             // Always close the channel to release resources
-            channel.shutdown();
+            channel.shutdown();  
         }
     }
 }
