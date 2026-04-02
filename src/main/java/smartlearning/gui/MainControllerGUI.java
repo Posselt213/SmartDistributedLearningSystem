@@ -12,6 +12,13 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.SwingUtilities;
+import io.grpc.ManagedChannel;
+import io.grpc.ManagedChannelBuilder;
+import smartlearning.naming.NamingServiceGrpc;
+import smartlearning.naming.ServiceList;
+import smartlearning.naming.ServiceInfo;
+import smartlearning.naming.Empty;
+
 
 /**
  * This class is the main GUI controller for the project.
@@ -36,6 +43,7 @@ public class MainControllerGUI extends JFrame {
      */
     public MainControllerGUI() {
         initializeGUI();
+        
     }
 
     /**
@@ -52,9 +60,12 @@ public class MainControllerGUI extends JFrame {
 
         // Top panel for buttons
         JPanel topPanel = new JPanel();
-
+        
         // Create discover services button
         discoverServicesButton = new JButton("Discover Services");
+        
+        // When the button is clicked, call discoverServices()
+        discoverServicesButton.addActionListener(e -> discoverServices());
 
         // Add button to top panel
         topPanel.add(discoverServicesButton);
@@ -77,6 +88,58 @@ public class MainControllerGUI extends JFrame {
         outputArea.append("GUI started successfully.\n");
         outputArea.append("Click 'Discover Services' when the Naming Service is running.\n");
     }
+    
+    /**
+ * This method connects to the Naming Service and retrieves all registered services.
+ * It then displays them in the output area.
+ */
+private void discoverServices() {
+
+    ManagedChannel channel = null;
+
+    try {
+        outputArea.append("\nConnecting to Naming Service...\n");
+
+        // Connect to Naming Service
+        channel = ManagedChannelBuilder
+                .forAddress("localhost", 50050)
+                .usePlaintext()
+                .build();
+
+        NamingServiceGrpc.NamingServiceBlockingStub stub =
+                NamingServiceGrpc.newBlockingStub(channel);
+
+        // Call ListServices RPC
+        ServiceList serviceList = stub.listServices(Empty.newBuilder().build());
+
+        outputArea.append("Services discovered:\n");
+
+        // Loop through all services and print them
+        for (ServiceInfo service : serviceList.getServicesList()) {
+
+            outputArea.append("-----------------------------------\n");
+            outputArea.append("Name: " + service.getName() + "\n");
+            outputArea.append("Host: " + service.getHost() + "\n");
+            outputArea.append("Port: " + service.getPort() + "\n");
+
+            outputArea.append("Capabilities:\n");
+
+            for (String capability : service.getCapabilitiesList()) {
+                outputArea.append(" - " + capability + "\n");
+            }
+        }
+
+        outputArea.append("\nDiscovery completed successfully.\n");
+
+    } catch (Exception e) {
+        outputArea.append("Error discovering services: " + e.getMessage() + "\n");
+
+    } finally {
+        if (channel != null) {
+            channel.shutdown();
+        }
+    }
+}
 
     /**
      * Main method used to launch the GUI.
