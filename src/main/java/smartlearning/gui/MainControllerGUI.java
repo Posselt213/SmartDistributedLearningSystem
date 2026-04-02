@@ -29,6 +29,13 @@ import smartlearning.monitoring.ScoreRequest;
 import smartlearning.monitoring.ScoreResponse;
 import smartlearning.monitoring.StudentMonitoringServiceGrpc;
 import smartlearning.monitoring.StudentRequest;
+import smartlearning.notification.AlertRequest;
+import smartlearning.notification.AlertResponse;
+import smartlearning.notification.Notification;
+import smartlearning.notification.NotificationList;
+import smartlearning.notification.NotificationServiceGrpc;
+import smartlearning.notification.Priority;
+import smartlearning.naming.ServiceQuery;
 
 /**
  * This class is the main GUI controller for the project. INFO
@@ -62,11 +69,17 @@ public class MainControllerGUI extends JFrame {
     private JTextField assessmentIdField;
     private JTextField scoreField;
     private JTextField maxScoreField;
+    // Notification inputs
+    private JTextField notificationUserIdField;
+    private JTextField notificationMessageField;
 
     // Student Monitoring buttons
     private JButton recordAttendanceButton;
     private JButton submitScoreButton;
     private JButton getProgressButton;
+    // Notification buttons
+    private JButton sendAlertButton;
+    private JButton getNotificationsButton;
 
     /**
      * This method creates the window layout and components.
@@ -83,17 +96,26 @@ public class MainControllerGUI extends JFrame {
         // Top panel for buttons
         JPanel topPanel = new JPanel();
 
+        //Right panel for Notification controls
+        JPanel notificationPanel = new JPanel();
+        notificationPanel.setLayout(new GridLayout(0, 2, 5, 5));
+
         // Buttons
-        discoverServicesButton = new JButton("Discover Services"); 
+        discoverServicesButton = new JButton("Discover Services");
         recordAttendanceButton = new JButton("Record Attendance");
         submitScoreButton = new JButton("Submit Score");
         getProgressButton = new JButton("Get Progress");
+        // Buttons Notification
+        sendAlertButton = new JButton("Send Alert");
+        getNotificationsButton = new JButton("Get Notifications");
 
         // When the button is clicked, call discoverServices()
         discoverServicesButton.addActionListener(e -> discoverServices());
         recordAttendanceButton.addActionListener(e -> recordAttendance());
         submitScoreButton.addActionListener(e -> submitScore());
         getProgressButton.addActionListener(e -> getStudentProgress());
+        sendAlertButton.addActionListener(e -> sendAlert());
+        getNotificationsButton.addActionListener(e -> getNotifications());
 
         // Add button to top panel
         topPanel.add(discoverServicesButton);
@@ -112,8 +134,9 @@ public class MainControllerGUI extends JFrame {
         assessmentIdField = new JTextField();
         scoreField = new JTextField();
         maxScoreField = new JTextField();
-
-        
+        // Inputs Notifications
+        notificationUserIdField = new JTextField();
+        notificationMessageField = new JTextField();
 
         // Add labels and fields
         monitoringPanel.add(new JLabel("Student ID:"));
@@ -138,6 +161,19 @@ public class MainControllerGUI extends JFrame {
         monitoringPanel.add(recordAttendanceButton);
         monitoringPanel.add(submitScoreButton);
         monitoringPanel.add(getProgressButton);
+
+        // Add components
+        notificationPanel.add(new JLabel("User ID:"));
+        notificationPanel.add(notificationUserIdField);
+
+        notificationPanel.add(new JLabel("Message:"));
+        notificationPanel.add(notificationMessageField);
+
+        notificationPanel.add(sendAlertButton);
+        notificationPanel.add(getNotificationsButton);
+
+        // Add panel to the RIGHT side
+        add(notificationPanel, BorderLayout.EAST);
 
         // Add panel to the left side of the window
         add(monitoringPanel, BorderLayout.WEST);
@@ -385,6 +421,126 @@ public class MainControllerGUI extends JFrame {
             }
             if (monitoringChannel != null) {
                 monitoringChannel.shutdown();
+            }
+        }
+    }
+
+    /**
+     * Sends an alert using NotificationService.
+     */
+    private void sendAlert() {
+
+        ManagedChannel namingChannel = null;
+        ManagedChannel notificationChannel = null;
+
+        try {
+            outputArea.append("\nSending alert...\n");
+
+            // Discover NotificationService
+            namingChannel = ManagedChannelBuilder
+                    .forAddress("localhost", 50050)
+                    .usePlaintext()
+                    .build();
+
+            NamingServiceGrpc.NamingServiceBlockingStub namingStub
+                    = NamingServiceGrpc.newBlockingStub(namingChannel);
+
+            ServiceInfo serviceInfo = namingStub.findService(
+                       ServiceQuery.newBuilder()
+                            .setName("NotificationService")
+                            .build()
+            );
+
+            // Connect to NotificationService
+            notificationChannel = ManagedChannelBuilder
+                    .forAddress(serviceInfo.getHost(), serviceInfo.getPort())
+                    .usePlaintext()
+                    .build();
+
+            NotificationServiceGrpc.NotificationServiceBlockingStub stub
+                    = NotificationServiceGrpc.newBlockingStub(notificationChannel);
+
+            AlertResponse response = stub.sendAlert(
+                    AlertRequest.newBuilder()
+                            .setRecipientId(notificationUserIdField.getText().trim())
+                            .setMessage(notificationMessageField.getText().trim())
+                            .setPriority(Priority.HIGH)
+                            .build()
+            );
+
+            outputArea.append("Alert sent successfully.\n");
+            outputArea.append("Notification ID: " + response.getNotificationId() + "\n");
+
+        } catch (Exception e) {
+            outputArea.append("Error sending alert: " + e.getMessage() + "\n");
+
+        } finally {
+            if (namingChannel != null) {
+                namingChannel.shutdown();
+            }
+            if (notificationChannel != null) {
+                notificationChannel.shutdown();
+            }
+        }
+    }
+
+    /**
+     * Retrieves stored notifications for a user.
+     */
+    private void getNotifications() {
+
+        ManagedChannel namingChannel = null;
+        ManagedChannel notificationChannel = null;
+
+        try {
+            outputArea.append("\nGetting notifications...\n");
+
+            // Discover NotificationService
+            namingChannel = ManagedChannelBuilder
+                    .forAddress("localhost", 50050)
+                    .usePlaintext()
+                    .build();
+
+            NamingServiceGrpc.NamingServiceBlockingStub namingStub
+                    = NamingServiceGrpc.newBlockingStub(namingChannel);
+
+            ServiceInfo serviceInfo = namingStub.findService(
+                    ServiceQuery.newBuilder()
+                            .setName("NotificationService")
+                            .build()
+            );
+
+            // Connect to NotificationService
+            notificationChannel = ManagedChannelBuilder
+                    .forAddress(serviceInfo.getHost(), serviceInfo.getPort())
+                    .usePlaintext()
+                    .build();
+
+            NotificationServiceGrpc.NotificationServiceBlockingStub stub
+                    = NotificationServiceGrpc.newBlockingStub(notificationChannel);
+
+            NotificationList list = stub.getNotifications(
+                    smartlearning.notification.UserRequest.newBuilder()
+                            .setUserId(notificationUserIdField.getText().trim())
+                            .build()
+            );
+
+            for (Notification n : list.getNotificationsList()) {
+                outputArea.append("-----------------------------------\n");
+                outputArea.append("ID: " + n.getNotificationId() + "\n");
+                outputArea.append("Message: " + n.getMessage() + "\n");
+                outputArea.append("Priority: " + n.getPriority() + "\n");
+            }
+
+        } catch (Exception e) {
+            outputArea.append("Error getting notifications: " + e.getMessage() + "\n");
+
+        } finally {
+            if (namingChannel != null) {
+                namingChannel.shutdown();
+            }
+            if (notificationChannel != null) {
+                notificationChannel.shutdown();
             }
         }
     }
