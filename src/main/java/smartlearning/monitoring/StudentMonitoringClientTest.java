@@ -31,7 +31,7 @@ public class StudentMonitoringClientTest {
                     AttendanceRequest.newBuilder()
                             .setStudentId("S1001")
                             .setDate("2026-03-31")
-                            .setPresent(true)
+                            .setPresent(false)
                             .build()
             );
 
@@ -45,7 +45,7 @@ public class StudentMonitoringClientTest {
                     ScoreRequest.newBuilder()
                             .setStudentId("S1001")
                             .setAssessmentId("Quiz1")
-                            .setScore(40)
+                            .setScore(0)
                             .setMaxScore(50)
                             .build()
             );
@@ -100,21 +100,21 @@ public class StudentMonitoringClientTest {
             requestObserver.onNext(ScoreEvent.newBuilder()
                     .setStudentId("S1001")
                     .setAssessmentId("Quiz2")
-                    .setScore(45)
+                    .setScore(0)
                     .setMaxScore(50)
                     .build());
 
             requestObserver.onNext(ScoreEvent.newBuilder()
                     .setStudentId("S1001")
                     .setAssessmentId("Quiz3")
-                    .setScore(35)
+                    .setScore(0)
                     .setMaxScore(50)
                     .build());
 
             requestObserver.onNext(ScoreEvent.newBuilder()
                     .setStudentId("S1001")
                     .setAssessmentId("Quiz4")
-                    .setScore(60)   // invalid on purpose
+                    .setScore(0)   // invalid on purpose
                     .setMaxScore(50)
                     .build());
 

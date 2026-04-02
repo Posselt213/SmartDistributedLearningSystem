@@ -12,6 +12,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import smartlearning.naming.NamingServiceGrpc;
+import smartlearning.naming.ServiceInfo;
+import smartlearning.naming.ServiceQuery;
 import smartlearning.notification.AlertRequest;
 import smartlearning.notification.AlertResponse;
 import smartlearning.notification.NotificationServiceGrpc;
@@ -22,30 +25,28 @@ import smartlearning.notification.Priority;
  *
  * Main responsibilities:
  * - record attendance
- * - store assessment scores
- * - calculate student progress
+ * - store scores
+ * - calculate progress
  * - determine risk level
- * - automatically notify a student when the risk level becomes HIGH
+ * - send an automatic alert when a student becomes HIGH risk
  */
 public class StudentMonitoringServiceImpl extends StudentMonitoringServiceGrpc.StudentMonitoringServiceImplBase {
 
-    //  In-memory storage for attendance
-   
-    // totalClassesMap stores how many classes each student had
-    // presentClassesMap stores how many classes each student attended
+    // In-memory attendance storage
+    // totalClassesMap = total number of classes recorded for each student
+    // presentClassesMap = total number of attended classes for each student
     private final Map<String, Integer> totalClassesMap = new ConcurrentHashMap<>();
     private final Map<String, Integer> presentClassesMap = new ConcurrentHashMap<>();
 
-    // In-memory storage for scores
- 
+
+    // In-memory score storage
     // Each student ID is linked to a list of score percentages
     private final Map<String, List<Double>> scoreMap = new ConcurrentHashMap<>();
 
     /**
      * Unary RPC.
      *
-     * This method records attendance for one student on one date.
-     * It updates the attendance counters and returns the new attendance rate.
+     * Records attendance for one student and returns the updated attendance rate.
      */
     @Override
     public void recordAttendance(AttendanceRequest request, StreamObserver<AttendanceResponse> responseObserver) {
@@ -62,18 +63,17 @@ public class StudentMonitoringServiceImpl extends StudentMonitoringServiceGrpc.S
 
         String studentId = request.getStudentId();
 
-        // Update total number of classes
+        // Increase total class count
         totalClassesMap.put(studentId, totalClassesMap.getOrDefault(studentId, 0) + 1);
 
-        // If the student was present, update attended classes
+        // Increase present count if student attended
         if (request.getPresent()) {
             presentClassesMap.put(studentId, presentClassesMap.getOrDefault(studentId, 0) + 1);
         }
 
-        //Calculate new attendance rate
+        // Calculate updated attendance rate
         double attendanceRate = calculateAttendanceRate(studentId);
 
-        //Return response
         AttendanceResponse response = AttendanceResponse.newBuilder()
                 .setSuccess(true)
                 .setAttendanceRate(attendanceRate)
@@ -87,8 +87,7 @@ public class StudentMonitoringServiceImpl extends StudentMonitoringServiceGrpc.S
     /**
      * Unary RPC.
      *
-     * This method stores one score for one assessment.
-     * The score is converted into a percentage before being stored.
+     * Stores a student assessment score and returns the updated average.
      */
     @Override
     public void submitScore(ScoreRequest request, StreamObserver<ScoreResponse> responseObserver) {
@@ -114,7 +113,7 @@ public class StudentMonitoringServiceImpl extends StudentMonitoringServiceGrpc.S
 
         String studentId = request.getStudentId();
 
-        //  Convert score to percentage
+        // Convert raw score into percentage between 0 and 1
         double percentage = request.getScore() / request.getMaxScore();
 
         // Store score
@@ -124,7 +123,6 @@ public class StudentMonitoringServiceImpl extends StudentMonitoringServiceGrpc.S
         // Calculate updated average
         double newAverage = calculateAverageScore(studentId);
 
-        // Return response
         ScoreResponse response = ScoreResponse.newBuilder()
                 .setSuccess(true)
                 .setNewAverage(newAverage)
@@ -138,18 +136,13 @@ public class StudentMonitoringServiceImpl extends StudentMonitoringServiceGrpc.S
     /**
      * Unary RPC.
      *
-     * This method returns a summary of student progress:
-     * - attendance rate
-     * - average score
-     * - risk level
-     *
-     * If the risk level is HIGH, the service automatically sends a notification
-     * by calling NotificationService.
+     * Returns the full student progress summary.
+     * If the student is HIGH risk, an automatic alert is sent.
      */
     @Override
     public void getStudentProgress(StudentRequest request, StreamObserver<ProgressResponse> responseObserver) {
 
-        //  Validate input
+        // Validate input
         if (request.getStudentId().isBlank()) {
             responseObserver.onError(
                     Status.INVALID_ARGUMENT
@@ -179,12 +172,11 @@ public class StudentMonitoringServiceImpl extends StudentMonitoringServiceGrpc.S
         double averageScore = calculateAverageScore(studentId);
         RiskLevel riskLevel = determineRiskLevel(attendanceRate, averageScore);
 
-        // If student is HIGH risk, notify automatically
+        // If risk is HIGH, notify automatically
         if (riskLevel == RiskLevel.HIGH) {
             sendHighRiskNotification(studentId, attendanceRate, averageScore);
         }
 
-        // -Build and return response
         ProgressResponse response = ProgressResponse.newBuilder()
                 .setStudentId(studentId)
                 .setAttendanceRate(attendanceRate)
@@ -200,8 +192,8 @@ public class StudentMonitoringServiceImpl extends StudentMonitoringServiceGrpc.S
     /**
      * Client-streaming RPC.
      *
-     * This method receives multiple score events from the client.
-     * It validates each one, stores valid scores, and counts rejected entries.
+     * Receives multiple score records from the client in one stream.
+     * Valid entries are stored and invalid ones are counted as rejected.
      */
     @Override
     public StreamObserver<ScoreEvent> uploadScores(StreamObserver<UploadSummary> responseObserver) {
@@ -212,14 +204,10 @@ public class StudentMonitoringServiceImpl extends StudentMonitoringServiceGrpc.S
             int acceptedCount = 0;
             int rejectedCount = 0;
 
-            /**
-             * Called every time the client sends a new score event.
-             */
             @Override
             public void onNext(ScoreEvent scoreEvent) {
                 receivedCount++;
 
-                
                 // Validate each streamed score event
                 if (scoreEvent.getStudentId().isBlank()
                         || scoreEvent.getAssessmentId().isBlank()
@@ -230,7 +218,7 @@ public class StudentMonitoringServiceImpl extends StudentMonitoringServiceGrpc.S
                     return;
                 }
 
-                // Convert to percentage and store it
+                // Convert to percentage and store
                 String studentId = scoreEvent.getStudentId();
                 double percentage = scoreEvent.getScore() / scoreEvent.getMaxScore();
 
@@ -240,20 +228,13 @@ public class StudentMonitoringServiceImpl extends StudentMonitoringServiceGrpc.S
                 acceptedCount++;
             }
 
-            /**
-             * Called if the client stream fails.
-             */
             @Override
             public void onError(Throwable throwable) {
                 System.err.println("Error in client streaming: " + throwable.getMessage());
             }
 
-            /**
-             * Called when the client finishes sending all score events.
-             */
             @Override
             public void onCompleted() {
-
                 UploadSummary response = UploadSummary.newBuilder()
                         .setReceivedCount(receivedCount)
                         .setAcceptedCount(acceptedCount)
@@ -270,7 +251,7 @@ public class StudentMonitoringServiceImpl extends StudentMonitoringServiceGrpc.S
     /**
      * Helper method to calculate attendance rate.
      *
-     * Attendance rate = present classes / total classes
+     * attendance rate = present classes / total classes
      */
     private double calculateAttendanceRate(String studentId) {
         int total = totalClassesMap.getOrDefault(studentId, 0);
@@ -304,7 +285,7 @@ public class StudentMonitoringServiceImpl extends StudentMonitoringServiceGrpc.S
     }
 
     /**
-     * Helper method to determine student risk level.
+     * Helper method to determine risk level.
      */
     private RiskLevel determineRiskLevel(double attendanceRate, double averageScore) {
         if (attendanceRate < 0.70 || averageScore < 0.50) {
@@ -317,28 +298,50 @@ public class StudentMonitoringServiceImpl extends StudentMonitoringServiceGrpc.S
     }
 
     /**
-     * This method connects to NotificationService and sends an automatic alert
-     * when a student is considered HIGH risk.
+     * This method sends an automatic high-risk notification.
      *
-     * For now the notification is sent directly to the same student ID.
-     * Later in the GUI/report you can explain that this could also be sent
-     * to a teacher or support staff member.
+     * 1. Discover NotificationService through Naming Service
+     * 2. Connect to the discovered host and port
+     * 3. Send the alert
      */
     private void sendHighRiskNotification(String studentId, double attendanceRate, double averageScore) {
 
-        ManagedChannel channel = null;
+        ManagedChannel namingChannel = null;
+        ManagedChannel notificationChannel = null;
 
         try {
-            // Connect to NotificationService
-            channel = ManagedChannelBuilder
-                    .forAddress("localhost", 50053)
+            // Connect to Naming Service
+            namingChannel = ManagedChannelBuilder
+                    .forAddress("localhost", 50050)
+                    .usePlaintext()
+                    .build();
+
+            NamingServiceGrpc.NamingServiceBlockingStub namingStub =
+                    NamingServiceGrpc.newBlockingStub(namingChannel);
+
+            // Ask Naming Service where NotificationService is
+            ServiceInfo notificationServiceInfo = namingStub.findService(
+                    ServiceQuery.newBuilder()
+                            .setName("NotificationService")
+                            .build()
+            );
+
+            String notificationHost = notificationServiceInfo.getHost();
+            int notificationPort = notificationServiceInfo.getPort();
+
+            System.out.println("Discovered NotificationService at "
+                    + notificationHost + ":" + notificationPort);
+
+            // Connect to NotificationService using discovered address
+            notificationChannel = ManagedChannelBuilder
+                    .forAddress(notificationHost, notificationPort)
                     .usePlaintext()
                     .build();
 
             NotificationServiceGrpc.NotificationServiceBlockingStub notificationStub =
-                    NotificationServiceGrpc.newBlockingStub(channel);
+                    NotificationServiceGrpc.newBlockingStub(notificationChannel);
 
-            // Build alert message
+            // Build automatic alert
             String alertMessage = "High risk detected for student " + studentId
                     + ". Attendance rate: " + attendanceRate
                     + ", Average score: " + averageScore;
@@ -349,19 +352,23 @@ public class StudentMonitoringServiceImpl extends StudentMonitoringServiceGrpc.S
                     .setPriority(Priority.HIGH)
                     .build();
 
-            // Send alert
+            //Send alert
             AlertResponse response = notificationStub.sendAlert(alertRequest);
 
             System.out.println("Automatic notification sent: " + response.getMessage());
 
         } catch (Exception e) {
-            // If notification fails, we log the error but do not stop the main RPC
+            // We log the error, but we do not fail the main StudentMonitoring 
             System.err.println("Failed to send automatic high-risk notification: " + e.getMessage());
 
         } finally {
-            // Close  channel
-            if (channel != null) {
-                channel.shutdown();
+            // Close both channels safely
+            if (namingChannel != null) {
+                namingChannel.shutdown();
+            }
+
+            if (notificationChannel != null) {
+                notificationChannel.shutdown();
             }
         }
     }
