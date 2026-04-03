@@ -4,24 +4,24 @@
  */
 package smartlearning.gui;
 
+import io.grpc.ManagedChannel;
+import io.grpc.ManagedChannelBuilder;
 import java.awt.BorderLayout;
 import java.awt.Font;
+import java.awt.GridLayout;
 import javax.swing.JButton;
+import javax.swing.JCheckBox;
 import javax.swing.JFrame;
+import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
-import javax.swing.SwingUtilities;
-import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
-import smartlearning.naming.NamingServiceGrpc;
-import smartlearning.naming.ServiceList;
-import smartlearning.naming.ServiceInfo;
-import smartlearning.naming.Empty;
-import java.awt.GridLayout;
-import javax.swing.JCheckBox;
-import javax.swing.JLabel;
 import javax.swing.JTextField;
+import javax.swing.SwingUtilities;
+import smartlearning.adaptive.AdaptiveLearningServiceGrpc;
+import smartlearning.adaptive.LearningMaterial;
+import smartlearning.adaptive.RecommendationRequest;
+import smartlearning.adaptive.RecommendationResponse;
 import smartlearning.monitoring.AttendanceRequest;
 import smartlearning.monitoring.AttendanceResponse;
 import smartlearning.monitoring.ProgressResponse;
@@ -29,116 +29,116 @@ import smartlearning.monitoring.ScoreRequest;
 import smartlearning.monitoring.ScoreResponse;
 import smartlearning.monitoring.StudentMonitoringServiceGrpc;
 import smartlearning.monitoring.StudentRequest;
+import smartlearning.naming.Empty;
+import smartlearning.naming.NamingServiceGrpc;
+import smartlearning.naming.ServiceInfo;
+import smartlearning.naming.ServiceList;
+import smartlearning.naming.ServiceQuery;
 import smartlearning.notification.AlertRequest;
 import smartlearning.notification.AlertResponse;
 import smartlearning.notification.Notification;
 import smartlearning.notification.NotificationList;
 import smartlearning.notification.NotificationServiceGrpc;
 import smartlearning.notification.Priority;
-import smartlearning.naming.ServiceQuery;
+import smartlearning.notification.UserRequest;
 
 /**
- * This class is the main GUI controller for the project. INFO
- * https://docs.oracle.com/javase/8/docs/api/javax/swing/package-summary.html -
- * the main window - a top panel with one button - a large text area to display
- * output
+ * This class is the main GUI controller for the project.
  *
+ * Current GUI features:
+ * - Discover registered services from Naming Service
+ * - Student Monitoring controls
+ * - Notification controls
+ * - Adaptive Learning recommendation controls
+ * - Output area for responses, logs and errors
  */
 public class MainControllerGUI extends JFrame {
 
-    // Button
+    // Top button
     private JButton discoverServicesButton;
 
-    // Text to display responses, logs, and errors
+    // Output area
     private JTextArea outputArea;
 
-    /**
-     * Constructor.
-     *
-     * This sets up the main window and all visual components.
-     */
-    public MainControllerGUI() {
-        initializeGUI();
-
-    }
-
-    // Student Monitoring input fields
+    //Student Monitoring input fields
     private JTextField studentIdField;
     private JTextField dateField;
     private JCheckBox presentCheckBox;
     private JTextField assessmentIdField;
     private JTextField scoreField;
     private JTextField maxScoreField;
-    // Notification inputs
-    private JTextField notificationUserIdField;
-    private JTextField notificationMessageField;
 
     // Student Monitoring buttons
     private JButton recordAttendanceButton;
     private JButton submitScoreButton;
     private JButton getProgressButton;
+
+    // Notification input fields
+    private JTextField notificationUserIdField;
+    private JTextField notificationMessageField;
+
     // Notification buttons
     private JButton sendAlertButton;
     private JButton getNotificationsButton;
 
+    // Adaptive Learning input fields
+    private JTextField adaptiveStudentIdField;
+    private JTextField attendanceRateField;
+    private JTextField averageScoreField;
+    private JTextField topicField;
+
+    // Adaptive Learning button
+    private JButton getRecommendationsButton;
+
     /**
-     * This method creates the window layout and components.
+     * Constructor.
+     */
+    public MainControllerGUI() {
+        initializeGUI();
+    }
+
+    /**
+     * This method creates the full GUI layout and components.
      */
     private void initializeGUI() {
 
-        //  Basic window settings
+        // ---------------------------------------------------------
+        // Basic window settings
+        // ---------------------------------------------------------
         setTitle("Smart Distributed Learning Support System");
-        setSize(900, 600);
+        setSize(1200, 650);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setLocationRelativeTo(null); // centers the window on screen
+        setLocationRelativeTo(null);
         setLayout(new BorderLayout());
 
-        // Top panel for buttons
+        // ---------------------------------------------------------
+        // Top panel
+        // ---------------------------------------------------------
         JPanel topPanel = new JPanel();
 
-        //Right panel for Notification controls
-        JPanel notificationPanel = new JPanel();
-        notificationPanel.setLayout(new GridLayout(0, 2, 5, 5));
-
-        // Buttons
         discoverServicesButton = new JButton("Discover Services");
-        recordAttendanceButton = new JButton("Record Attendance");
-        submitScoreButton = new JButton("Submit Score");
-        getProgressButton = new JButton("Get Progress");
-        // Buttons Notification
-        sendAlertButton = new JButton("Send Alert");
-        getNotificationsButton = new JButton("Get Notifications");
-
-        // When the button is clicked, call discoverServices()
-        discoverServicesButton.addActionListener(e -> discoverServices());
-        recordAttendanceButton.addActionListener(e -> recordAttendance());
-        submitScoreButton.addActionListener(e -> submitScore());
-        getProgressButton.addActionListener(e -> getStudentProgress());
-        sendAlertButton.addActionListener(e -> sendAlert());
-        getNotificationsButton.addActionListener(e -> getNotifications());
-
-        // Add button to top panel
         topPanel.add(discoverServicesButton);
 
-        // Add top panel to top area of window
         add(topPanel, BorderLayout.NORTH);
 
         // Left panel for Student Monitoring controls
         JPanel monitoringPanel = new JPanel();
         monitoringPanel.setLayout(new GridLayout(0, 2, 5, 5));
 
-        // Input fields
+        // Create Student Monitoring input fields
         studentIdField = new JTextField();
         dateField = new JTextField();
         presentCheckBox = new JCheckBox("Present");
         assessmentIdField = new JTextField();
         scoreField = new JTextField();
         maxScoreField = new JTextField();
-        // Inputs Notifications
-        notificationUserIdField = new JTextField();
-        notificationMessageField = new JTextField();
 
-        // Add labels and fields
+        // Create Student Monitoring buttons
+        recordAttendanceButton = new JButton("Record Attendance");
+        submitScoreButton = new JButton("Submit Score");
+        getProgressButton = new JButton("Get Progress");
+
+        // Add Student Monitoring components
         monitoringPanel.add(new JLabel("Student ID:"));
         monitoringPanel.add(studentIdField);
 
@@ -157,12 +157,26 @@ public class MainControllerGUI extends JFrame {
         monitoringPanel.add(new JLabel("Max Score:"));
         monitoringPanel.add(maxScoreField);
 
-        // Add buttons
         monitoringPanel.add(recordAttendanceButton);
         monitoringPanel.add(submitScoreButton);
         monitoringPanel.add(getProgressButton);
 
-        // Add components
+        add(monitoringPanel, BorderLayout.WEST);
+
+        // Right side container for Notification + Adaptive Learning
+        JPanel rightContainer = new JPanel();
+        rightContainer.setLayout(new GridLayout(2, 1, 5, 5));
+
+        // Notification panel
+        JPanel notificationPanel = new JPanel();
+        notificationPanel.setLayout(new GridLayout(0, 2, 5, 5));
+
+        notificationUserIdField = new JTextField();
+        notificationMessageField = new JTextField();
+
+        sendAlertButton = new JButton("Send Alert");
+        getNotificationsButton = new JButton("Get Notifications");
+
         notificationPanel.add(new JLabel("User ID:"));
         notificationPanel.add(notificationUserIdField);
 
@@ -172,31 +186,61 @@ public class MainControllerGUI extends JFrame {
         notificationPanel.add(sendAlertButton);
         notificationPanel.add(getNotificationsButton);
 
-        // Add panel to the RIGHT side
-        add(notificationPanel, BorderLayout.EAST);
+        //  Adaptive Learning panel
+        JPanel adaptivePanel = new JPanel();
+        adaptivePanel.setLayout(new GridLayout(0, 2, 5, 5));
 
-        // Add panel to the left side of the window
-        add(monitoringPanel, BorderLayout.WEST);
+        adaptiveStudentIdField = new JTextField();
+        attendanceRateField = new JTextField();
+        averageScoreField = new JTextField();
+        topicField = new JTextField();
 
-        // Output area in the center
+        getRecommendationsButton = new JButton("Get Recommendations");
+
+        adaptivePanel.add(new JLabel("Student ID:"));
+        adaptivePanel.add(adaptiveStudentIdField);
+
+        adaptivePanel.add(new JLabel("Attendance Rate:"));
+        adaptivePanel.add(attendanceRateField);
+
+        adaptivePanel.add(new JLabel("Average Score:"));
+        adaptivePanel.add(averageScoreField);
+
+        adaptivePanel.add(new JLabel("Topic:"));
+        adaptivePanel.add(topicField);
+
+        adaptivePanel.add(getRecommendationsButton);
+
+        // Add both panels to right side container
+        rightContainer.add(notificationPanel);
+        rightContainer.add(adaptivePanel);
+
+        add(rightContainer, BorderLayout.EAST);
+
+        // Output area in center
         outputArea = new JTextArea();
-        outputArea.setEditable(false); // user should not type here
+        outputArea.setEditable(false);
         outputArea.setFont(new Font("Monospaced", Font.PLAIN, 14));
 
-        // Put text area inside a scroll pane
         JScrollPane scrollPane = new JScrollPane(outputArea);
-
-        // Add scroll pane to center of window
         add(scrollPane, BorderLayout.CENTER);
 
-        // Initial message for the user
+        // Button actions
+        discoverServicesButton.addActionListener(e -> discoverServices());
+        recordAttendanceButton.addActionListener(e -> recordAttendance());
+        submitScoreButton.addActionListener(e -> submitScore());
+        getProgressButton.addActionListener(e -> getStudentProgress());
+        sendAlertButton.addActionListener(e -> sendAlert());
+        getNotificationsButton.addActionListener(e -> getNotifications());
+        getRecommendationsButton.addActionListener(e -> getRecommendations());
+
+        //  Initial output
         outputArea.append("GUI started successfully.\n");
-        outputArea.append("Click 'Discover Services' when the Naming Service is running.\n");
+        outputArea.append("Start Naming Service and the 3 core services before using the GUI.\n");
     }
 
     /**
-     * This method connects to the Naming Service and retrieves all registered
-     * services. It then displays them in the output area.
+     * This method connects to Naming Service and displays all registered services.
      */
     private void discoverServices() {
 
@@ -205,28 +249,23 @@ public class MainControllerGUI extends JFrame {
         try {
             outputArea.append("\nConnecting to Naming Service...\n");
 
-            // Connect to Naming Service
             channel = ManagedChannelBuilder
                     .forAddress("localhost", 50050)
                     .usePlaintext()
                     .build();
 
-            NamingServiceGrpc.NamingServiceBlockingStub stub
-                    = NamingServiceGrpc.newBlockingStub(channel);
+            NamingServiceGrpc.NamingServiceBlockingStub stub =
+                    NamingServiceGrpc.newBlockingStub(channel);
 
-            // Call ListServices RPC
             ServiceList serviceList = stub.listServices(Empty.newBuilder().build());
 
             outputArea.append("Services discovered:\n");
 
-            // Loop through all services and print them
             for (ServiceInfo service : serviceList.getServicesList()) {
-
                 outputArea.append("-----------------------------------\n");
                 outputArea.append("Name: " + service.getName() + "\n");
                 outputArea.append("Host: " + service.getHost() + "\n");
                 outputArea.append("Port: " + service.getPort() + "\n");
-
                 outputArea.append("Capabilities:\n");
 
                 for (String capability : service.getCapabilitiesList()) {
@@ -247,7 +286,7 @@ public class MainControllerGUI extends JFrame {
     }
 
     /**
-     * This method sends a RecordAttendance request to StudentMonitoringService.
+     * Sends a RecordAttendance request to StudentMonitoringService.
      */
     private void recordAttendance() {
 
@@ -257,29 +296,29 @@ public class MainControllerGUI extends JFrame {
         try {
             outputArea.append("\nRecording attendance...\n");
 
-            // First discover StudentMonitoringService from Naming Service
+            // Discover StudentMonitoringService using Naming Service
             namingChannel = ManagedChannelBuilder
                     .forAddress("localhost", 50050)
                     .usePlaintext()
                     .build();
 
-            NamingServiceGrpc.NamingServiceBlockingStub namingStub
-                    = NamingServiceGrpc.newBlockingStub(namingChannel);
+            NamingServiceGrpc.NamingServiceBlockingStub namingStub =
+                    NamingServiceGrpc.newBlockingStub(namingChannel);
 
             ServiceInfo serviceInfo = namingStub.findService(
-                    smartlearning.naming.ServiceQuery.newBuilder()
+                    ServiceQuery.newBuilder()
                             .setName("StudentMonitoringService")
                             .build()
             );
 
-            // Connect to StudentMonitoringService using discovered host and port
+            // Connect to StudentMonitoringService
             monitoringChannel = ManagedChannelBuilder
                     .forAddress(serviceInfo.getHost(), serviceInfo.getPort())
                     .usePlaintext()
                     .build();
 
-            StudentMonitoringServiceGrpc.StudentMonitoringServiceBlockingStub stub
-                    = StudentMonitoringServiceGrpc.newBlockingStub(monitoringChannel);
+            StudentMonitoringServiceGrpc.StudentMonitoringServiceBlockingStub stub =
+                    StudentMonitoringServiceGrpc.newBlockingStub(monitoringChannel);
 
             AttendanceResponse response = stub.recordAttendance(
                     AttendanceRequest.newBuilder()
@@ -306,7 +345,7 @@ public class MainControllerGUI extends JFrame {
     }
 
     /**
-     * This method sends a SubmitScore request to StudentMonitoringService.
+     * Sends a SubmitScore request to StudentMonitoringService.
      */
     private void submitScore() {
 
@@ -322,11 +361,11 @@ public class MainControllerGUI extends JFrame {
                     .usePlaintext()
                     .build();
 
-            NamingServiceGrpc.NamingServiceBlockingStub namingStub
-                    = NamingServiceGrpc.newBlockingStub(namingChannel);
+            NamingServiceGrpc.NamingServiceBlockingStub namingStub =
+                    NamingServiceGrpc.newBlockingStub(namingChannel);
 
             ServiceInfo serviceInfo = namingStub.findService(
-                    smartlearning.naming.ServiceQuery.newBuilder()
+                    ServiceQuery.newBuilder()
                             .setName("StudentMonitoringService")
                             .build()
             );
@@ -337,8 +376,8 @@ public class MainControllerGUI extends JFrame {
                     .usePlaintext()
                     .build();
 
-            StudentMonitoringServiceGrpc.StudentMonitoringServiceBlockingStub stub
-                    = StudentMonitoringServiceGrpc.newBlockingStub(monitoringChannel);
+            StudentMonitoringServiceGrpc.StudentMonitoringServiceBlockingStub stub =
+                    StudentMonitoringServiceGrpc.newBlockingStub(monitoringChannel);
 
             ScoreResponse response = stub.submitScore(
                     ScoreRequest.newBuilder()
@@ -366,7 +405,7 @@ public class MainControllerGUI extends JFrame {
     }
 
     /**
-     * This method requests student progress from StudentMonitoringService.
+     * Requests full student progress from StudentMonitoringService.
      */
     private void getStudentProgress() {
 
@@ -382,11 +421,11 @@ public class MainControllerGUI extends JFrame {
                     .usePlaintext()
                     .build();
 
-            NamingServiceGrpc.NamingServiceBlockingStub namingStub
-                    = NamingServiceGrpc.newBlockingStub(namingChannel);
+            NamingServiceGrpc.NamingServiceBlockingStub namingStub =
+                    NamingServiceGrpc.newBlockingStub(namingChannel);
 
             ServiceInfo serviceInfo = namingStub.findService(
-                    smartlearning.naming.ServiceQuery.newBuilder()
+                    ServiceQuery.newBuilder()
                             .setName("StudentMonitoringService")
                             .build()
             );
@@ -397,8 +436,8 @@ public class MainControllerGUI extends JFrame {
                     .usePlaintext()
                     .build();
 
-            StudentMonitoringServiceGrpc.StudentMonitoringServiceBlockingStub stub
-                    = StudentMonitoringServiceGrpc.newBlockingStub(monitoringChannel);
+            StudentMonitoringServiceGrpc.StudentMonitoringServiceBlockingStub stub =
+                    StudentMonitoringServiceGrpc.newBlockingStub(monitoringChannel);
 
             ProgressResponse response = stub.getStudentProgress(
                     StudentRequest.newBuilder()
@@ -442,11 +481,11 @@ public class MainControllerGUI extends JFrame {
                     .usePlaintext()
                     .build();
 
-            NamingServiceGrpc.NamingServiceBlockingStub namingStub
-                    = NamingServiceGrpc.newBlockingStub(namingChannel);
+            NamingServiceGrpc.NamingServiceBlockingStub namingStub =
+                    NamingServiceGrpc.newBlockingStub(namingChannel);
 
             ServiceInfo serviceInfo = namingStub.findService(
-                       ServiceQuery.newBuilder()
+                    ServiceQuery.newBuilder()
                             .setName("NotificationService")
                             .build()
             );
@@ -457,8 +496,8 @@ public class MainControllerGUI extends JFrame {
                     .usePlaintext()
                     .build();
 
-            NotificationServiceGrpc.NotificationServiceBlockingStub stub
-                    = NotificationServiceGrpc.newBlockingStub(notificationChannel);
+            NotificationServiceGrpc.NotificationServiceBlockingStub stub =
+                    NotificationServiceGrpc.newBlockingStub(notificationChannel);
 
             AlertResponse response = stub.sendAlert(
                     AlertRequest.newBuilder()
@@ -501,8 +540,8 @@ public class MainControllerGUI extends JFrame {
                     .usePlaintext()
                     .build();
 
-            NamingServiceGrpc.NamingServiceBlockingStub namingStub
-                    = NamingServiceGrpc.newBlockingStub(namingChannel);
+            NamingServiceGrpc.NamingServiceBlockingStub namingStub =
+                    NamingServiceGrpc.newBlockingStub(namingChannel);
 
             ServiceInfo serviceInfo = namingStub.findService(
                     ServiceQuery.newBuilder()
@@ -516,11 +555,11 @@ public class MainControllerGUI extends JFrame {
                     .usePlaintext()
                     .build();
 
-            NotificationServiceGrpc.NotificationServiceBlockingStub stub
-                    = NotificationServiceGrpc.newBlockingStub(notificationChannel);
+            NotificationServiceGrpc.NotificationServiceBlockingStub stub =
+                    NotificationServiceGrpc.newBlockingStub(notificationChannel);
 
             NotificationList list = stub.getNotifications(
-                    smartlearning.notification.UserRequest.newBuilder()
+                    UserRequest.newBuilder()
                             .setUserId(notificationUserIdField.getText().trim())
                             .build()
             );
@@ -541,6 +580,78 @@ public class MainControllerGUI extends JFrame {
             }
             if (notificationChannel != null) {
                 notificationChannel.shutdown();
+            }
+        }
+    }
+
+    /**
+     * Calls AdaptiveLearningService to get recommendations based on
+     * the values entered in the GUI.
+     */
+    private void getRecommendations() {
+
+        ManagedChannel namingChannel = null;
+        ManagedChannel adaptiveChannel = null;
+
+        try {
+            outputArea.append("\nGetting recommendations...\n");
+
+            // Discover AdaptiveLearningService using Naming Service
+            namingChannel = ManagedChannelBuilder
+                    .forAddress("localhost", 50050)
+                    .usePlaintext()
+                    .build();
+
+            NamingServiceGrpc.NamingServiceBlockingStub namingStub =
+                    NamingServiceGrpc.newBlockingStub(namingChannel);
+
+            ServiceInfo serviceInfo = namingStub.findService(
+                    ServiceQuery.newBuilder()
+                            .setName("AdaptiveLearningService")
+                            .build()
+            );
+
+            // Connect to AdaptiveLearningService
+            adaptiveChannel = ManagedChannelBuilder
+                    .forAddress(serviceInfo.getHost(), serviceInfo.getPort())
+                    .usePlaintext()
+                    .build();
+
+            AdaptiveLearningServiceGrpc.AdaptiveLearningServiceBlockingStub stub =
+                    AdaptiveLearningServiceGrpc.newBlockingStub(adaptiveChannel);
+
+            RecommendationResponse response = stub.getRecommendations(
+                    RecommendationRequest.newBuilder()
+                            .setStudentId(adaptiveStudentIdField.getText().trim())
+                            .setAttendanceRate(Double.parseDouble(attendanceRateField.getText().trim()))
+                            .setAverageScore(Double.parseDouble(averageScoreField.getText().trim()))
+                            .setTopic(topicField.getText().trim())
+                            .build()
+            );
+
+            outputArea.append("Student ID: " + response.getStudentId() + "\n");
+            outputArea.append("Risk Level: " + response.getRiskLevel() + "\n");
+            outputArea.append("Difficulty Level: " + response.getDifficultyLevel() + "\n");
+            outputArea.append("Message: " + response.getMessage() + "\n");
+            outputArea.append("Recommended Materials:\n");
+
+            for (LearningMaterial material : response.getMaterialsList()) {
+                outputArea.append("-----------------------------------\n");
+                outputArea.append("Title: " + material.getTitle() + "\n");
+                outputArea.append("Type: " + material.getType() + "\n");
+                outputArea.append("Difficulty: " + material.getDifficulty() + "\n");
+                outputArea.append("Link: " + material.getLink() + "\n");
+            }
+
+        } catch (Exception e) {
+            outputArea.append("Error getting recommendations: " + e.getMessage() + "\n");
+
+        } finally {
+            if (namingChannel != null) {
+                namingChannel.shutdown();
+            }
+            if (adaptiveChannel != null) {
+                adaptiveChannel.shutdown();
             }
         }
     }
