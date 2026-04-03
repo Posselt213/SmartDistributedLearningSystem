@@ -41,16 +41,15 @@ import smartlearning.notification.NotificationList;
 import smartlearning.notification.NotificationServiceGrpc;
 import smartlearning.notification.Priority;
 import smartlearning.notification.UserRequest;
+import io.grpc.stub.StreamObserver;
+import smartlearning.adaptive.TutorMessage;
 
 /**
  * This class is the main GUI controller for the project.
  *
- * Current GUI features:
- * - Discover registered services from Naming Service
- * - Student Monitoring controls
- * - Notification controls
- * - Adaptive Learning recommendation controls
- * - Output area for responses, logs and errors
+ * Current GUI features: - Discover registered services from Naming Service -
+ * Student Monitoring controls - Notification controls - Adaptive Learning
+ * recommendation controls - Output area for responses, logs and errors
  */
 public class MainControllerGUI extends JFrame {
 
@@ -89,6 +88,18 @@ public class MainControllerGUI extends JFrame {
 
     // Adaptive Learning button
     private JButton getRecommendationsButton;
+
+    // Tutor session inputs
+    private JTextField tutorSessionIdField;
+    private JTextField tutorMessageField;
+
+    // Tutor session buttons
+    private JButton startTutorSessionButton;
+    private JButton sendTutorMessageButton;
+
+    // Streaming objects kept as class fields
+    private ManagedChannel tutorChannel;
+    private StreamObserver<TutorMessage> tutorRequestObserver;
 
     /**
      * Constructor.
@@ -186,7 +197,7 @@ public class MainControllerGUI extends JFrame {
         notificationPanel.add(sendAlertButton);
         notificationPanel.add(getNotificationsButton);
 
-        //  Adaptive Learning panel
+        //Adaptive Learning panel
         JPanel adaptivePanel = new JPanel();
         adaptivePanel.setLayout(new GridLayout(0, 2, 5, 5));
 
@@ -197,6 +208,14 @@ public class MainControllerGUI extends JFrame {
 
         getRecommendationsButton = new JButton("Get Recommendations");
 
+        // Tutor session fields
+        tutorSessionIdField = new JTextField();
+        tutorMessageField = new JTextField();
+
+        startTutorSessionButton = new JButton("Start Tutor Session");
+        sendTutorMessageButton = new JButton("Send Tutor Message");
+
+        // Recommendation controls
         adaptivePanel.add(new JLabel("Student ID:"));
         adaptivePanel.add(adaptiveStudentIdField);
 
@@ -210,6 +229,17 @@ public class MainControllerGUI extends JFrame {
         adaptivePanel.add(topicField);
 
         adaptivePanel.add(getRecommendationsButton);
+        adaptivePanel.add(new JLabel(""));
+
+        // Tutor session controls
+        adaptivePanel.add(new JLabel("Tutor Session ID:"));
+        adaptivePanel.add(tutorSessionIdField);
+
+        adaptivePanel.add(new JLabel("Tutor Message:"));
+        adaptivePanel.add(tutorMessageField);
+
+        adaptivePanel.add(startTutorSessionButton);
+        adaptivePanel.add(sendTutorMessageButton);
 
         // Add both panels to right side container
         rightContainer.add(notificationPanel);
@@ -233,6 +263,8 @@ public class MainControllerGUI extends JFrame {
         sendAlertButton.addActionListener(e -> sendAlert());
         getNotificationsButton.addActionListener(e -> getNotifications());
         getRecommendationsButton.addActionListener(e -> getRecommendations());
+        startTutorSessionButton.addActionListener(e -> startTutorSession());
+        sendTutorMessageButton.addActionListener(e -> sendTutorMessage());
 
         //  Initial output
         outputArea.append("GUI started successfully.\n");
@@ -240,7 +272,8 @@ public class MainControllerGUI extends JFrame {
     }
 
     /**
-     * This method connects to Naming Service and displays all registered services.
+     * This method connects to Naming Service and displays all registered
+     * services.
      */
     private void discoverServices() {
 
@@ -254,8 +287,8 @@ public class MainControllerGUI extends JFrame {
                     .usePlaintext()
                     .build();
 
-            NamingServiceGrpc.NamingServiceBlockingStub stub =
-                    NamingServiceGrpc.newBlockingStub(channel);
+            NamingServiceGrpc.NamingServiceBlockingStub stub
+                    = NamingServiceGrpc.newBlockingStub(channel);
 
             ServiceList serviceList = stub.listServices(Empty.newBuilder().build());
 
@@ -302,8 +335,8 @@ public class MainControllerGUI extends JFrame {
                     .usePlaintext()
                     .build();
 
-            NamingServiceGrpc.NamingServiceBlockingStub namingStub =
-                    NamingServiceGrpc.newBlockingStub(namingChannel);
+            NamingServiceGrpc.NamingServiceBlockingStub namingStub
+                    = NamingServiceGrpc.newBlockingStub(namingChannel);
 
             ServiceInfo serviceInfo = namingStub.findService(
                     ServiceQuery.newBuilder()
@@ -317,8 +350,8 @@ public class MainControllerGUI extends JFrame {
                     .usePlaintext()
                     .build();
 
-            StudentMonitoringServiceGrpc.StudentMonitoringServiceBlockingStub stub =
-                    StudentMonitoringServiceGrpc.newBlockingStub(monitoringChannel);
+            StudentMonitoringServiceGrpc.StudentMonitoringServiceBlockingStub stub
+                    = StudentMonitoringServiceGrpc.newBlockingStub(monitoringChannel);
 
             AttendanceResponse response = stub.recordAttendance(
                     AttendanceRequest.newBuilder()
@@ -361,8 +394,8 @@ public class MainControllerGUI extends JFrame {
                     .usePlaintext()
                     .build();
 
-            NamingServiceGrpc.NamingServiceBlockingStub namingStub =
-                    NamingServiceGrpc.newBlockingStub(namingChannel);
+            NamingServiceGrpc.NamingServiceBlockingStub namingStub
+                    = NamingServiceGrpc.newBlockingStub(namingChannel);
 
             ServiceInfo serviceInfo = namingStub.findService(
                     ServiceQuery.newBuilder()
@@ -376,8 +409,8 @@ public class MainControllerGUI extends JFrame {
                     .usePlaintext()
                     .build();
 
-            StudentMonitoringServiceGrpc.StudentMonitoringServiceBlockingStub stub =
-                    StudentMonitoringServiceGrpc.newBlockingStub(monitoringChannel);
+            StudentMonitoringServiceGrpc.StudentMonitoringServiceBlockingStub stub
+                    = StudentMonitoringServiceGrpc.newBlockingStub(monitoringChannel);
 
             ScoreResponse response = stub.submitScore(
                     ScoreRequest.newBuilder()
@@ -421,8 +454,8 @@ public class MainControllerGUI extends JFrame {
                     .usePlaintext()
                     .build();
 
-            NamingServiceGrpc.NamingServiceBlockingStub namingStub =
-                    NamingServiceGrpc.newBlockingStub(namingChannel);
+            NamingServiceGrpc.NamingServiceBlockingStub namingStub
+                    = NamingServiceGrpc.newBlockingStub(namingChannel);
 
             ServiceInfo serviceInfo = namingStub.findService(
                     ServiceQuery.newBuilder()
@@ -436,8 +469,8 @@ public class MainControllerGUI extends JFrame {
                     .usePlaintext()
                     .build();
 
-            StudentMonitoringServiceGrpc.StudentMonitoringServiceBlockingStub stub =
-                    StudentMonitoringServiceGrpc.newBlockingStub(monitoringChannel);
+            StudentMonitoringServiceGrpc.StudentMonitoringServiceBlockingStub stub
+                    = StudentMonitoringServiceGrpc.newBlockingStub(monitoringChannel);
 
             ProgressResponse response = stub.getStudentProgress(
                     StudentRequest.newBuilder()
@@ -481,8 +514,8 @@ public class MainControllerGUI extends JFrame {
                     .usePlaintext()
                     .build();
 
-            NamingServiceGrpc.NamingServiceBlockingStub namingStub =
-                    NamingServiceGrpc.newBlockingStub(namingChannel);
+            NamingServiceGrpc.NamingServiceBlockingStub namingStub
+                    = NamingServiceGrpc.newBlockingStub(namingChannel);
 
             ServiceInfo serviceInfo = namingStub.findService(
                     ServiceQuery.newBuilder()
@@ -496,8 +529,8 @@ public class MainControllerGUI extends JFrame {
                     .usePlaintext()
                     .build();
 
-            NotificationServiceGrpc.NotificationServiceBlockingStub stub =
-                    NotificationServiceGrpc.newBlockingStub(notificationChannel);
+            NotificationServiceGrpc.NotificationServiceBlockingStub stub
+                    = NotificationServiceGrpc.newBlockingStub(notificationChannel);
 
             AlertResponse response = stub.sendAlert(
                     AlertRequest.newBuilder()
@@ -540,8 +573,8 @@ public class MainControllerGUI extends JFrame {
                     .usePlaintext()
                     .build();
 
-            NamingServiceGrpc.NamingServiceBlockingStub namingStub =
-                    NamingServiceGrpc.newBlockingStub(namingChannel);
+            NamingServiceGrpc.NamingServiceBlockingStub namingStub
+                    = NamingServiceGrpc.newBlockingStub(namingChannel);
 
             ServiceInfo serviceInfo = namingStub.findService(
                     ServiceQuery.newBuilder()
@@ -555,8 +588,8 @@ public class MainControllerGUI extends JFrame {
                     .usePlaintext()
                     .build();
 
-            NotificationServiceGrpc.NotificationServiceBlockingStub stub =
-                    NotificationServiceGrpc.newBlockingStub(notificationChannel);
+            NotificationServiceGrpc.NotificationServiceBlockingStub stub
+                    = NotificationServiceGrpc.newBlockingStub(notificationChannel);
 
             NotificationList list = stub.getNotifications(
                     UserRequest.newBuilder()
@@ -585,8 +618,8 @@ public class MainControllerGUI extends JFrame {
     }
 
     /**
-     * Calls AdaptiveLearningService to get recommendations based on
-     * the values entered in the GUI.
+     * Calls AdaptiveLearningService to get recommendations based on the values
+     * entered in the GUI.
      */
     private void getRecommendations() {
 
@@ -602,8 +635,8 @@ public class MainControllerGUI extends JFrame {
                     .usePlaintext()
                     .build();
 
-            NamingServiceGrpc.NamingServiceBlockingStub namingStub =
-                    NamingServiceGrpc.newBlockingStub(namingChannel);
+            NamingServiceGrpc.NamingServiceBlockingStub namingStub
+                    = NamingServiceGrpc.newBlockingStub(namingChannel);
 
             ServiceInfo serviceInfo = namingStub.findService(
                     ServiceQuery.newBuilder()
@@ -617,8 +650,8 @@ public class MainControllerGUI extends JFrame {
                     .usePlaintext()
                     .build();
 
-            AdaptiveLearningServiceGrpc.AdaptiveLearningServiceBlockingStub stub =
-                    AdaptiveLearningServiceGrpc.newBlockingStub(adaptiveChannel);
+            AdaptiveLearningServiceGrpc.AdaptiveLearningServiceBlockingStub stub
+                    = AdaptiveLearningServiceGrpc.newBlockingStub(adaptiveChannel);
 
             RecommendationResponse response = stub.getRecommendations(
                     RecommendationRequest.newBuilder()
@@ -653,6 +686,143 @@ public class MainControllerGUI extends JFrame {
             if (adaptiveChannel != null) {
                 adaptiveChannel.shutdown();
             }
+        }
+    }
+
+    /**
+     * Starts a bidirectional tutor session with AdaptiveLearningService.
+     *
+     * This creates the streaming connection and keeps it open so the user can
+     * send multiple messages from the GUI.
+     */
+    private void startTutorSession() {
+
+        ManagedChannel namingChannel = null;
+
+        try {
+            outputArea.append("\nStarting tutor session...\n");
+
+            // If a session is already active, do not create another one
+            if (tutorRequestObserver != null) {
+                outputArea.append("Tutor session is already active.\n");
+                return;
+            }
+
+            // Discover AdaptiveLearningService
+            namingChannel = ManagedChannelBuilder
+                    .forAddress("localhost", 50050)
+                    .usePlaintext()
+                    .build();
+
+            NamingServiceGrpc.NamingServiceBlockingStub namingStub
+                    = NamingServiceGrpc.newBlockingStub(namingChannel);
+
+            ServiceInfo serviceInfo = namingStub.findService(
+                    ServiceQuery.newBuilder()
+                            .setName("AdaptiveLearningService")
+                            .build()
+            );
+
+            // Connect to AdaptiveLearningService
+            tutorChannel = ManagedChannelBuilder
+                    .forAddress(serviceInfo.getHost(), serviceInfo.getPort())
+                    .usePlaintext()
+                    .build();
+
+            AdaptiveLearningServiceGrpc.AdaptiveLearningServiceStub asyncStub
+                    = AdaptiveLearningServiceGrpc.newStub(tutorChannel);
+
+            //Create response observer
+            StreamObserver<TutorMessage> responseObserver = new StreamObserver<TutorMessage>() {
+
+                @Override
+                public void onNext(TutorMessage tutorMessage) {
+                    outputArea.append("Tutor Reply:\n");
+                    outputArea.append("Session ID: " + tutorMessage.getSessionId() + "\n");
+                    outputArea.append("Student ID: " + tutorMessage.getStudentId() + "\n");
+                    outputArea.append("Text: " + tutorMessage.getText() + "\n");
+                    outputArea.append("-----------------------------------\n");
+                }
+
+                @Override
+                public void onError(Throwable throwable) {
+                    outputArea.append("Tutor session error: " + throwable.getMessage() + "\n");
+                    tutorRequestObserver = null;
+
+                    if (tutorChannel != null) {
+                        tutorChannel.shutdown();
+                        tutorChannel = null;
+                    }
+                }
+
+                @Override
+                public void onCompleted() {
+                    outputArea.append("Tutor session completed.\n");
+                    tutorRequestObserver = null;
+
+                    if (tutorChannel != null) {
+                        tutorChannel.shutdown();
+                        tutorChannel = null;
+                    }
+                }
+            };
+
+            // Start the bidirectional stream
+            tutorRequestObserver = asyncStub.tutorSession(responseObserver);
+
+            outputArea.append("Tutor session started successfully.\n");
+
+        } catch (Exception e) {
+            outputArea.append("Error starting tutor session: " + e.getMessage() + "\n");
+
+        } finally {
+            if (namingChannel != null) {
+                namingChannel.shutdown();
+            }
+        }
+    }
+
+    /**
+     * Sends one message to the active tutor session.
+     */
+    private void sendTutorMessage() {
+
+        try {
+            // Check if session has started
+            if (tutorRequestObserver == null) {
+                outputArea.append("Please start a tutor session first.\n");
+                return;
+            }
+
+            String sessionId = tutorSessionIdField.getText().trim();
+            String studentId = adaptiveStudentIdField.getText().trim();
+            String messageText = tutorMessageField.getText().trim();
+
+            if (sessionId.isEmpty() || studentId.isEmpty() || messageText.isEmpty()) {
+                outputArea.append("Session ID, Student ID and Tutor Message must not be empty.\n");
+                return;
+            }
+
+            TutorMessage message = TutorMessage.newBuilder()
+                    .setSessionId(sessionId)
+                    .setStudentId(studentId)
+                    .setText(messageText)
+                    .setTimestamp(System.currentTimeMillis())
+                    .build();
+
+            tutorRequestObserver.onNext(message);
+
+            outputArea.append("Student Message Sent:\n");
+            outputArea.append("Session ID: " + sessionId + "\n");
+            outputArea.append("Student ID: " + studentId + "\n");
+            outputArea.append("Text: " + messageText + "\n");
+            outputArea.append("-----------------------------------\n");
+
+            // Optional: clear only the message field after sending
+            tutorMessageField.setText("");
+
+        } catch (Exception e) {
+            outputArea.append("Error sending tutor message: " + e.getMessage() + "\n");
         }
     }
 
